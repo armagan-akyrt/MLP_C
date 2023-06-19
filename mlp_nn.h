@@ -190,7 +190,9 @@ void mat_dot(Mat dst, Mat a, Mat b)
 {   
     // dot product pre-requisites.
     MLP_NN_ASSERT(a.cols == b.rows); 
+
     size_t n = a.cols;
+
     MLP_NN_ASSERT(dst.rows == a.rows);
     MLP_NN_ASSERT(dst.cols == b.cols);
 
@@ -304,7 +306,7 @@ NN_model nn_model_alloc(size_t arch_count, size_t *arch)
     m.bs = MLP_NN_MALLOC(sizeof(*m.bs) * m.count);
     MLP_NN_ASSERT(m.bs != NULL);
 
-    m.as = MLP_NN_MALLOC(sizeof(*m.as) * m.count + 1);
+    m.as = MLP_NN_MALLOC(sizeof(*m.as) * (m.count + 1));
     MLP_NN_ASSERT(m.as != NULL);
 
     m.as[0] = mat_alloc(1, arch[0]);
@@ -368,9 +370,12 @@ float nn_loss(NN_model nn, Mat ti, Mat to)
     for (size_t i = 0; i < n; i++)
     {
         Mat x = mat_row(ti, i);
+
         Mat y = mat_row(to, i);
 
+
         mat_copy(NN_INPUT(nn), x);
+
         nn_forward(nn);
 
         size_t q = to.cols;
@@ -386,10 +391,12 @@ float nn_loss(NN_model nn, Mat ti, Mat to)
 void nn_forward(NN_model nn)
 {
     for (size_t i = 0; i < nn.count; i++)
-    {
-        mat_dot(nn.as[i+1], nn.as[i], nn.ws[i]);
+    {   
+
+        mat_dot(nn.as[i+1], nn.as[i], nn.ws[i]);        
         mat_sum(nn.as[i+1], nn.bs[i]);
         mat_activation(nn.as[i+1], ACTIVATION_FUNCTION);
+
     }
 }
 

@@ -39,13 +39,14 @@ float td_sum[] =
 
 int main(void)
 {
+    // check for activation funciton.
     printf("%s\n", STRINGIZE(ACTIVATION_FUNC_NAME));
     // srand(time(0));
-    srand(69);
+    srand(69); // seed
 
-    float *td = td_xor;
+    float *td = td_sum;
     
-    size_t stride = 3;
+    size_t stride = 6;
     float eps = 1e-1;
     float lr = 1e-1;
 
@@ -85,7 +86,6 @@ int main(void)
     {
         nn_backpropagation(nn, g, ti, to);
         // nn_finite_diff(nn, g, eps, ti, to);
-        //NN_PRINT(g);
         nn_learn(nn, g, lr);
     }
     
@@ -100,6 +100,8 @@ int main(void)
             printf("%zu ^ %zu = %f\n", i, j, MAT_AT(NN_OUTPUT(nn), 0, 0));
         }
     }
+
+     NN_PRINT(g);
 
     printf("loss: %f\n", nn_loss(nn, ti, to));
     return 0;
