@@ -39,15 +39,33 @@ typedef struct
 
 #define MAT_AT(m, i, j) (m).es[(i)*(m).stride + (j)]
 
+typedef float (*activation_function) (float);
+
+// set activation funciton, default is sifmoidf
+#ifndef ACTIVATION_FUNCTION
+#define ACTIVATION_FUNCTION sigmoidf
+#endif // ACTIVATION_FUNCTION
+
+// this abomination of a code will set the name for activation funciton derivative, I apologize if anyone had to see this.
+#define CONCATENATE_DETAIL(x, y) x##y
+#define CONCATENATE(x, y) CONCATENATE_DETAIL(x, y)
+#define D_ACTIVATION_FUNCTION_HELPER(x) CONCATENATE(x, _der)
+#define D_ACTIVATION_FUNCTION D_ACTIVATION_FUNCTION_HELPER(ACTIVATION_FUNCTION)
+
+#define STRINGIZE_DETAIL(x) #x
+#define STRINGIZE(x) STRINGIZE_DETAIL(x)
+#define ACTIVATION_FUNC_NAME STRINGIZE(D_ACTIVATION_FUNCTION)
+
 Mat mat_alloc(size_t rows, size_t cols);
 void mat_fill(Mat m, float val);
 void mat_rand(Mat m, float l, float h);
 void mat_dot(Mat dst, Mat a, Mat b);
 void mat_sum(Mat dst, Mat b);
 void mat_print(Mat m, char *name, size_t padding);
-void mat_sig(Mat m);
+void mat_activation(Mat m, activation_function func);
 Mat mat_row(Mat m, size_t row);
 void mat_copy(Mat dst, Mat src);
+
 NN_model nn_model_alloc(size_t arch_count, size_t *arch);
 void nn_print(NN_model m, const char *name);
 void nn_rand(NN_model nn, float l, float h);
@@ -55,8 +73,13 @@ void nn_forward(NN_model nn);
 float nn_loss(NN_model nn, Mat ti, Mat to);
 void nn_finite_diff(NN_model nn, NN_model g, float eps, Mat ti, Mat to);
 void nn_learn(NN_model nn, NN_model g, float lr);
+
 float sigmoidf(float inp);
+float ReLUf(float inp);
 float rand_float(void);
+
+
+
 
 #endif //MLP_NN_H_
 
@@ -76,17 +99,20 @@ float sigmoidf(float inp)
 
 }
 
-void mat_sig(Mat m)
+float ReLUf(float inp)
+{
+    return inp > 0 ? inp : 0;
+}
+
+void mat_activation(Mat m, activation_function func)
 {
     for (size_t i = 0; i < m.rows; i++)
     {
         for (size_t j = 0; j < m.cols; j++)
         {
-            MAT_AT(m, i, j) = sigmoidf(MAT_AT(m, i ,j));
-        }
-        
+            MAT_AT(m, i, j) = func(MAT_AT(m, i ,j));
+        }   
     }
-    
 }
 
 Mat mat_row(Mat m, size_t row)
@@ -334,14 +360,13 @@ float nn_loss(NN_model nn, Mat ti, Mat to)
     return l / n;
 }
 
-
 void nn_forward(NN_model nn)
 {
     for (size_t i = 0; i < nn.count; i++)
     {
         mat_dot(nn.as[i+1], nn.as[i], nn.ws[i]);
         mat_sum(nn.as[i+1], nn.bs[i]);
-        mat_sig(nn.as[i+1]);
+        mat_activation(nn.as[i+1], ACTIVATION_FUNCTION);
     }
 }
 
