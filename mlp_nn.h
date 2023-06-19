@@ -69,12 +69,15 @@ void mat_copy(Mat dst, Mat src);
 NN_model nn_model_alloc(size_t arch_count, size_t *arch);
 void nn_print(NN_model m, const char *name);
 void nn_rand(NN_model nn, float l, float h);
+void nn_zero(NN_model nn);
 void nn_forward(NN_model nn);
 float nn_loss(NN_model nn, Mat ti, Mat to);
 void nn_finite_diff(NN_model nn, NN_model g, float eps, Mat ti, Mat to);
 void nn_learn(NN_model nn, NN_model g, float lr);
+void nn_backpropagation(NN_model nn, NN_model g, Mat ti, Mat to);
 
 float sigmoidf(float inp);
+float sigmoidf_der(float inp);
 float ReLUf(float inp);
 float rand_float(void);
 
@@ -99,9 +102,18 @@ float sigmoidf(float inp)
 
 }
 
+float sigmoidf_der(float activated_value)
+{
+    return activated_value * ( 1 - activated_value);
+}
+
 float ReLUf(float inp)
 {
     return inp > 0 ? inp : 0;
+}
+
+float ReLUf_der(float activated_value) {
+    return activated_value > 0 ? 1 : 0;
 }
 
 void mat_activation(Mat m, activation_function func)
@@ -335,6 +347,17 @@ void nn_rand(NN_model nn, float l, float h)
     }
 }
 
+void nn_zero(NN_model nn)
+{
+    for (size_t i = 0; i < nn.count; i++)
+    {
+        mat_fill(nn.ws[i], 0);
+        mat_fill(nn.bs[i], 0);
+        mat_fill(nn.as[i], 0);
+    }
+    mat_fill(nn.as[nn.count], 0);
+}
+
 float nn_loss(NN_model nn, Mat ti, Mat to)
 {
     MLP_NN_ASSERT(ti.rows == to.rows);
@@ -429,6 +452,77 @@ void nn_learn(NN_model nn, NN_model g, float lr)
             }
         }
     }
+}
+
+void nn_backpropagation(NN_model nn, NN_model g, Mat ti, Mat to)
+{
+    MLP_NN_ASSERT(ti.rows == to.rows);
+    size_t n = ti.rows;
+    MLP_NN_ASSERT(NN_OUTPUT(nn).cols == to.cols);
+
+    nn_zero(g);
+
+    // i => current input
+    // l => current layer
+    // j => current activation
+    // k => previous activation
+
+    for (size_t i = 0; i < n; i++)
+    {
+        mat_copy(NN_INPUT(nn), mat_row(ti, i));
+        nn_forward(nn);
+
+        for (size_t x = 0; x <= nn.count; x++)
+        {
+            mat_fill(g.as[x], 0);
+        }
+        
+
+        for (size_t j = 0; j < to.cols; j++)
+        {
+           MAT_AT(NN_OUTPUT(g), 0, j) =  MAT_AT(NN_OUTPUT(nn), 0, j) - MAT_AT(to, i, j);
+        }
+
+        for (size_t l = nn.count; l > 0; l--)
+        {
+            for (size_t j = 0; j < nn.as[l].cols; j++)
+            {
+                float a = MAT_AT(nn.as[l], 0, j);
+                float da = MAT_AT(g.as[l], 0, j);
+
+                MAT_AT(g.bs[l - 1], 0, j) += 2 * da * D_ACTIVATION_FUNCTION(a);
+
+                for (size_t k = 0; k < nn.as[l-1].cols; k++)
+                {
+                    float pa = MAT_AT(nn.as[l-1], 0, k);
+                    float w = MAT_AT(nn.ws[l-1], k, j);
+                    MAT_AT(g.ws[l-1], k, j) += 2*da* D_ACTIVATION_FUNCTION(a) * pa;
+                    MAT_AT(g.as[l-1], 0, k)  += 2 * da* D_ACTIVATION_FUNCTION(a) * w; 
+                }   
+            }
+        }
+    }
+
+    for (size_t i = 0; i < g.count; i++)
+    {
+        for (size_t j = 0; j < g.ws[i].rows; j++)
+        {
+            for (size_t k = 0; k < g.ws[i].cols; k++)
+            {
+                MAT_AT(g.ws[i], j, k) /= n;
+            }
+        }
+
+        for (size_t j = 0; j < g.bs[i].rows; j++)
+        {
+            for (size_t k = 0; k < g.bs[i].cols; k++)
+            {
+                MAT_AT(g.bs[i], j, k) /= n;
+            }
+        }
+        
+    }
+
 }
 
 #endif //MLP_NN_IMPLEMENTATION

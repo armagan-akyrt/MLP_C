@@ -40,7 +40,8 @@ float td_sum[] =
 int main(void)
 {
     printf("%s\n", STRINGIZE(ACTIVATION_FUNC_NAME));
-    srand(time(0));
+    // srand(time(0));
+    srand(69);
 
     float *td = td_xor;
     
@@ -80,9 +81,11 @@ int main(void)
 
     printf("loss: %f\n", nn_loss(nn, ti, to));
 
-    for (size_t i = 0; i < 250 * 500; i++)
+    for (size_t i = 0; i < 10000; i++)
     {
-        nn_finite_diff(nn, g, eps, ti, to);
+        nn_backpropagation(nn, g, ti, to);
+        // nn_finite_diff(nn, g, eps, ti, to);
+        //NN_PRINT(g);
         nn_learn(nn, g, lr);
     }
     
