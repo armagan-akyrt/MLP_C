@@ -44,11 +44,14 @@ int main(void)
     // srand(time(0));
     srand(69); // seed
 
-    float *td = td_sum;
+    float *td = td_xor;
     
-    size_t stride = 6;
+    
+    size_t stride = 3;
     float eps = 1e-1;
     float lr = 1e-1;
+    size_t epochs = 10000;
+
 
     size_t n = 4; //sizeof(td) / sizeof(td[0])/3;
     Mat ti = 
@@ -73,21 +76,21 @@ int main(void)
 
     nn_rand(nn, 0 ,1);
     printf("no errors on initialization\n");
-    Mat row = mat_row(ti, 1);
-    MAT_PRINT(row);
 
+/*     Mat row = mat_row(ti, 1);
+    MAT_PRINT(row);
     mat_copy(NN_INPUT(nn), row);
     nn_forward(nn);
-    MAT_PRINT(NN_OUTPUT(nn));
+    MAT_PRINT(NN_OUTPUT(nn)); */
 
     printf("loss: %f\n", nn_loss(nn, ti, to));
 
-    for (size_t i = 0; i < 10000; i++)
-    {
-        nn_backpropagation(nn, g, ti, to);
-        // nn_finite_diff(nn, g, eps, ti, to);
-        nn_learn(nn, g, lr);
-    }
+
+    nn_train(nn, g, ti, to, epochs, lr);
+
+    printf("loss: %f\n", nn_loss(nn, ti, to));
+
+    
     
     for (size_t i = 0; i < 2; i++)
     {
@@ -101,7 +104,10 @@ int main(void)
         }
     }
 
-     NN_PRINT(g);
+    //  NN_PRINT(g);
+
+    nn_save_model(nn);
+    
 
     printf("loss: %f\n", nn_loss(nn, ti, to));
     return 0;

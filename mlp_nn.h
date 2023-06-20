@@ -75,6 +75,10 @@ float nn_loss(NN_model nn, Mat ti, Mat to);
 void nn_finite_diff(NN_model nn, NN_model g, float eps, Mat ti, Mat to);
 void nn_learn(NN_model nn, NN_model g, float lr);
 void nn_backpropagation(NN_model nn, NN_model g, Mat ti, Mat to);
+void nn_train(NN_model nn,NN_model g, Mat ti, Mat to, size_t epochs, float lr);
+void nn_save_model(NN_model nn);
+void nn_load_model(char *filename, NN_model nn);
+
 
 float sigmoidf(float inp);
 float sigmoidf_der(float inp);
@@ -530,6 +534,110 @@ void nn_backpropagation(NN_model nn, NN_model g, Mat ti, Mat to)
         
     }
 
+}
+
+/**
+ * @brief Train the neural network
+ * 
+ * @param nn neural network to train
+ * @param ti input data
+ * @param to expected output data
+ * @param epochs # of epochs
+ * @param lr learning rate
+ */
+void nn_train(NN_model nn, NN_model g, Mat ti, Mat to, size_t epochs, float lr)
+{
+    MLP_NN_ASSERT(ti.rows == to.rows);
+    MLP_NN_ASSERT(NN_OUTPUT(nn).cols == to.cols);
+
+    Mat row = mat_row(ti, 1);
+    mat_copy(NN_INPUT(nn), row);
+    nn_forward(nn);
+    MAT_PRINT(NN_OUTPUT(nn));
+
+    for (size_t i = 0; i < epochs; i++)
+    {
+        nn_backpropagation(nn, g, ti, to);
+        nn_learn(nn, g, lr);
+    }
+
+}
+
+
+
+void nn_save_model(NN_model nn)
+{
+    MLP_NN_ASSERT(nn.count > 0);
+    MLP_NN_ASSERT(nn.ws != NULL);
+    MLP_NN_ASSERT(nn.bs != NULL);
+    MLP_NN_ASSERT(nn.as != NULL);
+
+    FILE *f = fopen("model.nn", "wb");
+    MLP_NN_ASSERT(f != NULL);
+
+    fwrite(&nn.count, sizeof(size_t), 1, f);
+
+    for (size_t i = 0; i < nn.count; i++)
+    {
+        fwrite(&nn.ws[i].rows, sizeof(size_t), 1, f);
+        fwrite(&nn.ws[i].cols, sizeof(size_t), 1, f);
+        fwrite(nn.ws[i].es, sizeof(float), nn.ws[i].rows * nn.ws[i].cols, f);
+
+        fwrite(&nn.bs[i].rows, sizeof(size_t), 1, f);
+        fwrite(&nn.bs[i].cols, sizeof(size_t), 1, f);
+        fwrite(nn.bs[i].es, sizeof(float), nn.bs[i].rows * nn.bs[i].cols, f);
+
+        fwrite(&nn.as[i].rows, sizeof(size_t), 1, f);
+        fwrite(&nn.as[i].cols, sizeof(size_t), 1, f);
+        fwrite(nn.as[i].es, sizeof(float), nn.as[i].rows * nn.as[i].cols, f);
+    }
+
+    fclose(f);
+}
+
+/**
+ * @brief Load a model from a file
+ * 
+ * @param file_name model to be loaded
+ * @param nn model to be loaded into
+ */
+void nn_load_model(char* file_name, NN_model nn)
+{
+    MLP_NN_ASSERT(nn.count > 0);
+    MLP_NN_ASSERT(nn.ws != NULL);
+    MLP_NN_ASSERT(nn.bs != NULL);
+    MLP_NN_ASSERT(nn.as != NULL);
+
+    FILE *f = fopen(file_name, "rb");
+    MLP_NN_ASSERT(f != NULL);
+
+    size_t count;
+    fread(&count, sizeof(size_t), 1, f);
+    MLP_NN_ASSERT(count == nn.count);
+
+    for (size_t i = 0; i < nn.count; i++)
+    {
+        size_t rows, cols;
+        fread(&rows, sizeof(size_t), 1, f);
+        fread(&cols, sizeof(size_t), 1, f);
+        MLP_NN_ASSERT(rows == nn.ws[i].rows);
+        MLP_NN_ASSERT(cols == nn.ws[i].cols);
+        fread(nn.ws[i].es, sizeof(float), nn.ws[i].rows * nn.ws[i].cols, f);
+
+        fread(&rows, sizeof(size_t), 1, f);
+        fread(&cols, sizeof(size_t), 1, f);
+        MLP_NN_ASSERT(rows == nn.bs[i].rows);
+        MLP_NN_ASSERT(cols == nn.bs[i].cols);
+        fread(nn.bs[i].es, sizeof(float), nn.bs[i].rows * nn.bs[i].cols, f);
+
+        fread(&rows, sizeof(size_t), 1, f);
+        fread(&cols, sizeof(size_t), 1, f);
+        MLP_NN_ASSERT(rows == nn.as[i].rows);
+        MLP_NN_ASSERT(cols == nn.as[i].cols);
+        fread(nn.as[i].es, sizeof(float), nn.as[i].rows * nn.as[i].cols, f);
+    }
+
+    fclose(f);
 }
 
 #endif //MLP_NN_IMPLEMENTATION
