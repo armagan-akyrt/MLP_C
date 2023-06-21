@@ -41,23 +41,22 @@ int main(void)
 {
     // check for activation funciton.
     printf("%s\n", STRINGIZE(ACTIVATION_FUNC_NAME));
-    // srand(time(0));
-    srand(69); // seed
+    srand(time(0));
+    // srand(29); // seed
 
-    float *td = td_xor;
+    float *td = td_sum;
     
-    
-    size_t stride = 3;
+    size_t stride = 6;
     float eps = 1e-1;
     float lr = 1e-1;
-    size_t epochs = 10000;
+    size_t epochs = 100000;
 
 
-    size_t n = 4; //sizeof(td) / sizeof(td[0])/3;
+    size_t n = 16; //sizeof(td) / sizeof(td[0])/3;
     Mat ti = 
     {
         .rows = n,
-        .cols = 2,
+        .cols = 4,
         .stride = stride,
         .es = td
     };
@@ -65,16 +64,16 @@ int main(void)
     Mat to = 
     {
         .rows = n,
-        .cols = 1,
+        .cols = 2,
         .stride = stride,
-        .es = td + 2
+        .es = td + 4
     };
 
-    size_t arch[] = {2, 3, 2, 1};
+    size_t arch[] = {4, 4, 6, 4, 2};
     NN_model nn = nn_model_alloc(ARRAY_LEN(arch), arch);
     NN_model g = nn_model_alloc(ARRAY_LEN(arch), arch);
 
-    nn_rand(nn, 0 ,1);
+    nn_rand(nn, -1 ,1);
     printf("no errors on initialization\n");
 
 /*     Mat row = mat_row(ti, 1);
@@ -107,7 +106,6 @@ int main(void)
     //  NN_PRINT(g);
 
     nn_save_model(nn);
-    
 
     printf("loss: %f\n", nn_loss(nn, ti, to));
     return 0;

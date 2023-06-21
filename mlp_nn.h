@@ -56,6 +56,7 @@ typedef float (*activation_function) (float);
 #define STRINGIZE(x) STRINGIZE_DETAIL(x)
 #define ACTIVATION_FUNC_NAME STRINGIZE(D_ACTIVATION_FUNCTION)
 
+// matrix-related operations
 Mat mat_alloc(size_t rows, size_t cols);
 void mat_fill(Mat m, float val);
 void mat_rand(Mat m, float l, float h);
@@ -66,6 +67,7 @@ void mat_activation(Mat m, activation_function func);
 Mat mat_row(Mat m, size_t row);
 void mat_copy(Mat dst, Mat src);
 
+// neural network-related operations
 NN_model nn_model_alloc(size_t arch_count, size_t *arch);
 void nn_print(NN_model m, const char *name);
 void nn_rand(NN_model nn, float l, float h);
@@ -108,7 +110,7 @@ float sigmoidf(float inp)
 
 float sigmoidf_der(float activated_value)
 {
-    return activated_value * ( 1 - activated_value);
+    return (activated_value) * ( 1 - (activated_value));
 }
 
 float ReLUf(float inp)
@@ -117,7 +119,14 @@ float ReLUf(float inp)
 }
 
 float ReLUf_der(float activated_value) {
-    return activated_value > 0 ? 1 : 0;
+    return activated_value
+ > 0 ? 1 : 0;
+}
+
+
+float tanhf_der(float activated_value)
+{
+    return 1 - (activated_value * activated_value);
 }
 
 void mat_activation(Mat m, activation_function func)
@@ -130,6 +139,7 @@ void mat_activation(Mat m, activation_function func)
         }   
     }
 }
+
 
 Mat mat_row(Mat m, size_t row)
 {
@@ -298,13 +308,20 @@ void mat_rand(Mat m, float l, float h)
     }
 }
 
+/**
+ * @brief allocates memory for the neural network model
+ * 
+ * @param arch_count number of layers in the neural network
+ * @param arch architecture of the neural network
+ * @return NN_model model
+ */
 NN_model nn_model_alloc(size_t arch_count, size_t *arch)
 {
     MLP_NN_ASSERT(arch_count > 0);
 
     NN_model m;
     m.count = arch_count - 1;
-    m.ws = MLP_NN_MALLOC(sizeof(*m.ws) * m.count); 
+    m.ws = MLP_NN_MALLOC(sizeof(*m.ws) * m.count);
     MLP_NN_ASSERT(m.ws != NULL);
 
     m.bs = MLP_NN_MALLOC(sizeof(*m.bs) * m.count);
@@ -312,6 +329,7 @@ NN_model nn_model_alloc(size_t arch_count, size_t *arch)
 
     m.as = MLP_NN_MALLOC(sizeof(*m.as) * (m.count + 1));
     MLP_NN_ASSERT(m.as != NULL);
+
 
     m.as[0] = mat_alloc(1, arch[0]);
 
@@ -325,6 +343,12 @@ NN_model nn_model_alloc(size_t arch_count, size_t *arch)
     return m;
 }
 
+/**
+ * @brief pretty self explanatory IMO. If you don't want to name oyur model, use NN_PRINT macro.
+ * 
+ * @param m model
+ * @param name name of the model
+ */
 void nn_print(NN_model m, const char *name)
 {
     char buf[256];
@@ -344,6 +368,13 @@ void nn_print(NN_model m, const char *name)
 
 }
 
+/**
+ * @brief randomizes the weights and biases of the network
+ * 
+ * @param nn model
+ * @param l lower bound
+ * @param h upper bound
+ */
 void nn_rand(NN_model nn, float l, float h)
 {
     for (size_t i = 0; i < nn.count; i++)
@@ -353,6 +384,11 @@ void nn_rand(NN_model nn, float l, float h)
     }
 }
 
+/**
+ * @brief sets all the values of the network to zero
+ * 
+ * @param nn model
+ */
 void nn_zero(NN_model nn)
 {
     for (size_t i = 0; i < nn.count; i++)
@@ -364,6 +400,14 @@ void nn_zero(NN_model nn)
     mat_fill(nn.as[nn.count], 0);
 }
 
+/**
+ * @brief calculates MSE loss of the network
+ * 
+ * @param nn model
+ * @param ti input data
+ * @param to expected output
+ * @return float loss
+ */
 float nn_loss(NN_model nn, Mat ti, Mat to)
 {
     MLP_NN_ASSERT(ti.rows == to.rows);
@@ -392,6 +436,11 @@ float nn_loss(NN_model nn, Mat ti, Mat to)
     return l / n;
 }
 
+/**
+ * @brief applies forwarding to the provided model.
+ * 
+ * @param nn model
+ */
 void nn_forward(NN_model nn)
 {
     for (size_t i = 0; i < nn.count; i++)
@@ -404,6 +453,15 @@ void nn_forward(NN_model nn)
     }
 }
 
+/**
+ * @brief DEPRECATED - use nn_backpropagation instead
+ * 
+ * @param nn model
+ * @param g gradient
+ * @param eps epsilon
+ * @param ti input data
+ * @param to expected output
+ */
 void nn_finite_diff(NN_model nn, NN_model g, float eps, Mat ti, Mat to)
 {
     float saved;
@@ -439,14 +497,22 @@ void nn_finite_diff(NN_model nn, NN_model g, float eps, Mat ti, Mat to)
         }
     }
 }
-
+/**
+ * @brief 
+ * 
+ * @param nn model 
+ * @param g  gradient
+ * @param lr learning rate
+ */
 void nn_learn(NN_model nn, NN_model g, float lr)
-{
+{   
+
     for (size_t i = 0; i < nn.count; i++)
     {
+
         for (size_t j = 0; j < nn.ws[i].rows; j++)
         {
-            for (size_t k = 0; k < nn.ws[j].cols; k++)
+            for (size_t k = 0; k < nn.ws[i].cols; k++)
             {
                 MAT_AT(nn.ws[i], j ,k) -= lr * MAT_AT(g.ws[i], j ,k);
             }
@@ -463,25 +529,35 @@ void nn_learn(NN_model nn, NN_model g, float lr)
             }
         }
     }
+
 }
 
+/**
+ * @brief applies backpropagation to the neural network
+ * 
+ * @param nn model
+ * @param g gradient
+ * @param ti input data
+ * @param to expected output
+ */
 void nn_backpropagation(NN_model nn, NN_model g, Mat ti, Mat to)
 {
     MLP_NN_ASSERT(ti.rows == to.rows);
     size_t n = ti.rows;
     MLP_NN_ASSERT(NN_OUTPUT(nn).cols == to.cols);
-
+    auto int test = 0;
     nn_zero(g);
 
     // i => current input
     // l => current layer
     // j => current activation
     // k => previous activation
-
     for (size_t i = 0; i < n; i++)
     {
+        
         mat_copy(NN_INPUT(nn), mat_row(ti, i));
         nn_forward(nn);
+        
 
         for (size_t x = 0; x <= nn.count; x++)
         {
@@ -534,6 +610,7 @@ void nn_backpropagation(NN_model nn, NN_model g, Mat ti, Mat to)
         
     }
 
+
 }
 
 /**
@@ -564,7 +641,11 @@ void nn_train(NN_model nn, NN_model g, Mat ti, Mat to, size_t epochs, float lr)
 }
 
 
-
+/**
+ * @brief Save the neural network model to a file
+ * 
+ * @param nn model to save
+ */
 void nn_save_model(NN_model nn)
 {
     MLP_NN_ASSERT(nn.count > 0);

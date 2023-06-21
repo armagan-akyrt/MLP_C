@@ -4,6 +4,7 @@
 #include "mlp_nn.h"
 #include <time.h>
 #include <stdio.h>
+#include <math.h>
 
 float td_xor[] = 
 {
@@ -15,7 +16,7 @@ float td_xor[] =
 
 int main(void)
 {
-    
+    float x = tanhf(23.4f);
     size_t arch[] = {2, 3, 2, 1};
 
     NN_model nn = nn_model_alloc(ARRAY_LEN(arch), arch);
